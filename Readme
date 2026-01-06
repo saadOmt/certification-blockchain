@@ -1,37 +1,106 @@
-# 🎓 Certification de Diplômes via Blockchain (BBC Project)
+🎓 Système de Certification de Diplômes sur Blockchain (BBC)
 
-Ce projet est une preuve de concept (PoC) permettant d'émettre, de stocker et de vérifier l'authenticité de diplômes académiques en utilisant la technologie Blockchain (Ethereum).
+Ce projet est une application décentralisée (DApp) permettant l'émission et la vérification de diplômes numériques infalsifiables via une Blockchain Ethereum locale (Hardhat).
 
-Il garantit :
-1. **L'authenticité** : Le diplôme vient bien de l'école (Signature Cryptographique).
-2. **La validité** : L'école est bien accréditée (Smart Contract "IssuerRegistry").
-3. **L'intégrité** : Le contenu du diplôme n'a pas été modifié (Hachage).
+Le système garantit que :
 
----
+Seules les écoles autorisées par l'administrateur (Ministère) peuvent émettre des diplômes.
 
-## 📂 Architecture du Projet
+Les diplômes sont infalsifiables et ancrés dans la blockchain.
 
-* **`contracts/IssuerRegistry.sol`** : Le Smart Contract (Backend) qui gère la liste blanche des écoles.
-* **`scripts/test_complet.js`** : Script de démonstration exécutant un scénario complet (Émission -> Vérification -> Tentative de fraude).
-* **`scripts/deploy.js`** : Script pour déployer le contrat sur un réseau.
-* **`index.html`** : Interface utilisateur basique pour interagir avec le contrat.
+N'importe qui (recruteurs) peut vérifier la validité d'un diplôme instantanément.
 
----
+🚀 Fonctionnalités & Rôles
 
-## 🛠️ Prérequis
+Le système est divisé en 3 interfaces distinctes pour simuler les acteurs réels :
 
-Pour faire tourner ce projet sur une nouvelle machine, vous avez besoin de :
-* **Node.js** (Version 16 ou supérieure) : [Télécharger ici](https://nodejs.org/)
-* Un terminal (PowerShell, Git Bash ou Terminal VS Code).
+Ministère / Admin (index.html)
 
----
+Déploiement du contrat intelligent.
 
-## 🚀 Installation (Pas à pas)
+Ajout (Whitelisting) de nouvelles écoles.
 
-1. **Récupérer le projet**
-   Copiez le dossier du projet sur votre ordinateur.
+Révocation (Blocage) d'écoles existantes.
 
-2. **Installer les dépendances**
-   Ouvrez un terminal dans le dossier du projet et lancez :
-   ```bash
-   npm install
+Écoles (ecole.html)
+
+Interface connectée au wallet de l'école.
+
+Émission de diplômes (Signature numérique).
+
+Génération de l'identifiant unique (Hash) du diplôme.
+
+Recruteurs / Public (entreprise.html)
+
+Interface publique sans connexion requise.
+
+Vérification de l'authenticité via le code unique.
+
+Vérification du statut de l'école (Active ou Fermée).
+
+🛠️ Prérequis Techniques
+
+Node.js (v14 ou supérieur)
+
+VS Code
+
+Hardhat (Environnement de développement Ethereum)
+
+📦 Installation
+
+Cloner ou télécharger le dossier du projet.
+
+Ouvrir un terminal dans le dossier racine.
+
+Installer les dépendances :
+
+npm install
+
+
+⚡ Démarrage Rapide
+
+1. Lancer la Blockchain Locale
+
+Ouvrez un terminal VS Code et lancez :
+
+npx hardhat node
+
+
+Cela démarre un réseau Ethereum local avec 20 comptes de test.
+
+2. Déployer le Smart Contract
+
+Ouvrez un deuxième terminal et lancez :
+
+npx hardhat run scripts/deploy.js --network localhost
+
+
+Le script déploiera le contrat et vous inscrira automatiquement comme Admin.
+
+3. Configuration Frontend
+
+Copiez l'adresse du contrat affichée dans le terminal (ex: 0x5FbDB...).
+
+Collez cette adresse dans la variable const contractAddress au début des 3 fichiers HTML (index.html, ecole.html, entreprise.html).
+
+🏗️ Architecture Technique
+
+Smart Contract (contracts/DiplomaCertification.sol) : Écrit en Solidity. Il contient la structure de données Diploma et School, ainsi que les événements DiplomaIssued.
+
+Script de Déploiement (scripts/deploy.js) : Gère la mise en ligne du contrat sur le réseau local.
+
+Frontend : HTML5, CSS3 et Ethers.js pour l'interaction avec le nœud Blockchain via RPC.
+
+🛑 Dépannage
+
+Erreur : "Nonce too high"
+
+Cela arrive si vous relancez npx hardhat node. La blockchain repart à zéro mais votre navigateur (Metamask) a gardé l'ancien historique.
+
+Solution : Relancez le déploiement et assurez-vous de mettre à jour l'adresse du contrat dans les fichiers HTML.
+
+Erreur : "Ecole non autorisee"
+
+Vérifiez que vous avez bien ajouté l'adresse du compte utilisé par ecole.html (Account #1) via la page Admin (index.html).
+
+Projet réalisé dans le cadre du cours Blockchain - ITS3

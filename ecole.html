@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Espace École - ESCP</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #eef2f6; }
+        .card { background: white; padding: 30px; border-radius: 12px; border-left: 6px solid #007bff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #007bff; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #0056b3; }
+        #generatedCode { background: #eee; padding: 15px; word-break: break-all; border-radius: 5px; color: #d63384; font-family: monospace; display: none; margin-top: 15px;}
+        .nav { text-align: center; margin-bottom: 20px; }
+        a { margin: 0 10px; text-decoration: none; color: #555; font-weight: bold; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body>
+    <div class="nav">
+        <a href="index.html"><- Admin</a> | Using: <strong>ESCP (Compte #1)</strong> | <a href="entreprise.html">Entreprise -></a>
+    </div>
+
+    <h1>🏫 ESCP Europe</h1>
+
+    <div class="card">
+        <h2>Émettre un Diplôme</h2>
+        <p>Connecté en tant que : <strong>0x7099... (ESCP)</strong></p>
+        
+        <input type="text" id="studentName" placeholder="Nom de l'étudiant (ex: Saad)">
+        <input type="text" id="degreeLabel" placeholder="Intitulé (ex: Master Finance)">
+        
+        <button onclick="createDiploma()">✍️ Signer et Créer</button>
+
+        <div id="generatedCode"></div>
+    </div>
+
+    <script>
+        // --- COLLE TON ADRESSE ICI ---
+        const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; 
+        // -----------------------------
+
+        const abi = [
+            "function issueDiploma(string, string) public returns (bytes32)",
+            "event DiplomaIssued(bytes32 indexed diplomaId, address indexed school, string student)"
+        ];
+
+        async function createDiploma() {
+            const name = document.getElementById("studentName").value;
+            const degree = document.getElementById("degreeLabel").value;
+            const output = document.getElementById("generatedCode");
+            
+            if(!name) return alert("Nom manquant");
+
+            try {
+                const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/");
+                
+                // --- C'EST ICI QUE LA MAGIE OPÈRE ---
+                // On prend le compte #1 (Index 1) qui correspond à l'adresse 0x7099...
+                const signer = await provider.getSigner(1); 
+                // ------------------------------------
+
+                const contract = new ethers.Contract(contractAddress, abi, signer);
+
+                output.style.display = "block";
+                output.innerText = "Signature en cours...";
+
+                const tx = await contract.issueDiploma(name, degree);
+                const receipt = await tx.wait();
+
+                // On cherche le code dans les logs
+                let foundCode = null;
+                for (const log of receipt.logs) {
+                    try {
+                        const parsedLog = contract.interface.parseLog(log);
+                        if (parsedLog.name === 'DiplomaIssued') foundCode = parsedLog.args[0];
+                    } catch (e) {}
+                }
+
+                if(foundCode) {
+                    output.innerHTML = `<strong>✅ DIPLÔME CRÉÉ !</strong><br>Code pour l'étudiant :<br><br>${foundCode}`;
+                }
+
+            } catch(err) {
+                console.error(err);
+                if(err.message.includes("revoquee")) {
+                    output.innerHTML = "<strong style='color:red'>ERREUR : Cette école n'est pas autorisée !</strong><br>Allez sur la page Admin pour l'ajouter.";
+                } else {
+                    output.innerText = "Erreur : " + err.message;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

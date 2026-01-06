@@ -1,55 +1,112 @@
-Lancer la Démonstration (Test Rapide)
-C'est la méthode la plus simple pour voir le système fonctionner. Ce script simule une blockchain temporaire, déploie le contrat et joue le rôle de l'école, de l'étudiant et du vérificateur.
+📝 Guide de Démonstration (Antisèche)
 
-Lancez la commande :
+Suis ces étapes dans l'ordre pour une présentation fluide sans bugs.
 
-Bash
+ÉTAPE 0 : Préparation (Avant que le prof arrive)
 
-npx hardhat run scripts/test_complet.js
-Résultat attendu :
+Ouvre VS Code.
 
-✅ Test 1 : Un vrai diplôme est validé.
-
-✅ Test 2 : Un diplôme signé par une fausse école est rejeté.
-
-✅ Test 3 : Un diplôme dont le contenu a été modifié est rejeté.
-
-🌐 Utiliser l'Interface Graphique (Optionnel)
-Si vous voulez utiliser la page index.html pour vérifier une école manuellement :
-
-Lancer une Blockchain locale persistante (dans un terminal dédié) :
-
-Bash
-
+Terminal 1 : Lance la blockchain.
 npx hardhat node
-Ne fermez pas ce terminal.
+(Ne ferme jamais ce terminal !)
 
-Déployer le contrat (dans un 2ème terminal) :
-
-Bash
-
+Terminal 2 : Déploie le contrat.
 npx hardhat run scripts/deploy.js --network localhost
-Copiez l'adresse du contrat qui s'affiche (ex: 0x5Fb...).
 
-Ouvrir l'interface
+Mise à jour des fichiers :
 
-Ouvrez le fichier index.html dans votre navigateur.
+Copie l'adresse générée (ex: 0x5Fb...).
 
-Collez l'adresse du contrat dans le champ correspondant.
+Colle-la dans index.html, ecole.html, et entreprise.html (Ligne const contractAddress = "...").
 
-Testez avec une adresse d'école (visible dans le terminal 1).
+Sauvegarde tout (Ctrl+S).
 
-📝 Technologies utilisées
-Solidity : Langage du Smart Contract.
+ÉTAPE 1 : Le Ministère (Admin)
 
-Hardhat : Environnement de développement Ethereum.
+Scénario : "Je suis le Ministère et je veux accréditer une école (ESCP)."
 
-Ethers.js : Librairie pour connecter le JavaScript à la Blockchain.
+Ouvre index.html dans le navigateur.
 
+Tu as besoin de l'adresse de la future école.
 
-### La prochaine étape pour vous
-1.  **Supprimez** le dossier `TestDiplome` (s'il existe encore) et le fichier `scripts/demo_flow.js` (si vous voulez être minimaliste).
-2.  **Créez** le fichier `README.md` et collez le texte ci-dessus.
-3.  Zippez le tout (sans le dossier `node_modules` car il est lourd, le destinataire fera `npm install`).
+Va dans ton Terminal 1 (celui qui défile).
 
-C'est prêt à être noté ! ✅
+Remonte au début pour voir la liste "Accounts".
+
+Copie l'adresse du Account #1 (ex: 0x7099...).
+
+Retourne sur la page Admin.
+
+Colle l'adresse dans le champ "Adresse de l'école".
+
+Mets le nom "ESCP".
+
+Clique sur ✅ Autoriser cette École.
+
+Valide le message de succès.
+
+ÉTAPE 2 : L'École (ESCP)
+
+Scénario : "Je suis l'administration de l'ESCP. Je me connecte et je crée un diplôme pour un étudiant."
+
+Ouvre ecole.html dans le navigateur.
+
+Montre que tu es connecté en tant que 0x7099... (C'est automatique dans le code).
+
+Entre un nom : "Saad" (ou le nom du prof).
+
+Entre un diplôme : "Master Blockchain".
+
+Clique sur ✍️ Signer et Créer.
+
+Un code s'affiche en bas (ex: 0x8a7...).
+
+Copie ce code.
+
+Dis : "J'envoie ce code par mail à l'étudiant."
+
+ÉTAPE 3 : Le Recruteur (Entreprise)
+
+Scénario : "Je suis une entreprise, je reçois le CV de Saad et je veux vérifier si son diplôme est vrai."
+
+Ouvre entreprise.html dans le navigateur.
+
+Colle le code que tu viens de copier.
+
+Clique sur Vérifier.
+
+Résultat attendu : ✅ DIPLÔME VALIDE (En vert).
+
+Montre les détails (Nom, Date, École).
+
+ÉTAPE 4 : Le "Crash Test" (Bonus Révocation)
+
+Scénario : "L'école ESCP a fraudé. Le ministère décide de la fermer. Que devient le diplôme ?"
+
+Retourne sur la page index.html (Admin).
+
+Vérifie que l'adresse de l'ESCP est toujours dans le champ.
+
+Clique sur ⛔ Bloquer cette École.
+
+Retourne sur la page entreprise.html.
+
+Clique à nouveau sur Vérifier avec le même code.
+
+Résultat attendu : ⚠️ VALIDE (Mais école fermée) (En orange).
+
+Conclusion : "Le diplôme reste authentique (l'étudiant l'a bien eu), mais on signale au recruteur que l'école n'est plus fiable."
+
+💡 Astuce en cas de panique
+
+Si plus rien ne marche ou si tu as une erreur bizarre :
+
+Ferme les terminaux (Poubelle).
+
+Relance npx hardhat node.
+
+Relance le déploiement.
+
+Change l'adresse dans les HTML.
+
+Rafraîchis les pages web.

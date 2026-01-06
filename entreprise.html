@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Vérification Diplôme</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f0fdf4; }
+        .card { background: white; padding: 30px; border-radius: 12px; border-left: 6px solid #28a745; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #28a745; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #1e7e34; }
+        .result-box { margin-top: 20px; padding: 15px; background: white; border: 1px solid #ddd; border-radius: 6px; display: none; }
+        .valid { color: #28a745; font-weight: bold; font-size: 1.2em; }
+        .warning { color: orange; font-weight: bold; font-size: 1.2em; }
+        .invalid { color: #dc3545; font-weight: bold; font-size: 1.2em; }
+        .nav { text-align: center; margin-bottom: 20px; }
+        a { margin: 0 10px; text-decoration: none; color: #555; font-weight: bold; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body>
+    <div class="nav">
+        <a href="ecole.html"><- Retour École</a>
+    </div>
+
+    <h1>🌍 Portail de Vérification</h1>
+
+    <div class="card">
+        <h2>Vérifier un code étudiant</h2>
+        <p>Espace public pour les recruteurs.</p>
+        
+        <input type="text" id="codeToVerify" placeholder="Collez le code (0x...)">
+        <button onclick="verify()">Vérifier l'authenticité</button>
+
+        <div id="result" class="result-box"></div>
+    </div>
+
+    <script>
+        // --- COLLE TON ADRESSE ICI ---
+        const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; 
+        // -----------------------------
+
+        const abi = [ "function verifyDiploma(bytes32) public view returns (string, string, uint256, string, bool, bool)" ];
+
+        async function verify() {
+            const code = document.getElementById("codeToVerify").value;
+            const output = document.getElementById("result");
+            
+            output.style.display = "block";
+            output.innerText = "Vérification...";
+
+            try {
+                const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/");
+                const contract = new ethers.Contract(contractAddress, abi, provider);
+                const data = await contract.verifyDiploma(code);
+                
+                // data = [Nom, Titre, Date, EcoleNom, DiplomeValide, EcoleActive]
+                const date = new Date(Number(data[2]) * 1000).toLocaleDateString();
+                
+                let statusHtml = "";
+                if(data[4] && data[5]) {
+                    statusHtml = "<div class='valid'>✅ DIPLÔME VALIDE</div>";
+                } else if(data[4] && !data[5]) {
+                    statusHtml = "<div class='warning'>⚠️ VALIDE (Mais école fermée)</div>";
+                } else {
+                    statusHtml = "<div class='invalid'>❌ INVALIDE</div>";
+                }
+
+                output.innerHTML = `
+                    ${statusHtml}
+                    <br>
+                    <strong>Étudiant :</strong> ${data[0]}<br>
+                    <strong>Diplôme :</strong> ${data[1]}<br>
+                    <strong>École :</strong> ${data[3]}<br>
+                    <strong>Date :</strong> ${date}
+                `;
+            } catch(err) {
+                output.innerHTML = "<div class='invalid'>❌ Code introuvable.</div>";
+            }
+        }
+    </script>
+</body>
+</html>
