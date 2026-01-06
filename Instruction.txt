@@ -1,0 +1,55 @@
+Lancer la Démonstration (Test Rapide)
+C'est la méthode la plus simple pour voir le système fonctionner. Ce script simule une blockchain temporaire, déploie le contrat et joue le rôle de l'école, de l'étudiant et du vérificateur.
+
+Lancez la commande :
+
+Bash
+
+npx hardhat run scripts/test_complet.js
+Résultat attendu :
+
+✅ Test 1 : Un vrai diplôme est validé.
+
+✅ Test 2 : Un diplôme signé par une fausse école est rejeté.
+
+✅ Test 3 : Un diplôme dont le contenu a été modifié est rejeté.
+
+🌐 Utiliser l'Interface Graphique (Optionnel)
+Si vous voulez utiliser la page index.html pour vérifier une école manuellement :
+
+Lancer une Blockchain locale persistante (dans un terminal dédié) :
+
+Bash
+
+npx hardhat node
+Ne fermez pas ce terminal.
+
+Déployer le contrat (dans un 2ème terminal) :
+
+Bash
+
+npx hardhat run scripts/deploy.js --network localhost
+Copiez l'adresse du contrat qui s'affiche (ex: 0x5Fb...).
+
+Ouvrir l'interface
+
+Ouvrez le fichier index.html dans votre navigateur.
+
+Collez l'adresse du contrat dans le champ correspondant.
+
+Testez avec une adresse d'école (visible dans le terminal 1).
+
+📝 Technologies utilisées
+Solidity : Langage du Smart Contract.
+
+Hardhat : Environnement de développement Ethereum.
+
+Ethers.js : Librairie pour connecter le JavaScript à la Blockchain.
+
+
+### La prochaine étape pour vous
+1.  **Supprimez** le dossier `TestDiplome` (s'il existe encore) et le fichier `scripts/demo_flow.js` (si vous voulez être minimaliste).
+2.  **Créez** le fichier `README.md` et collez le texte ci-dessus.
+3.  Zippez le tout (sans le dossier `node_modules` car il est lourd, le destinataire fera `npm install`).
+
+C'est prêt à être noté ! ✅

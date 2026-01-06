@@ -1,0 +1,37 @@
+# 🎓 Certification de Diplômes via Blockchain (BBC Project)
+
+Ce projet est une preuve de concept (PoC) permettant d'émettre, de stocker et de vérifier l'authenticité de diplômes académiques en utilisant la technologie Blockchain (Ethereum).
+
+Il garantit :
+1. **L'authenticité** : Le diplôme vient bien de l'école (Signature Cryptographique).
+2. **La validité** : L'école est bien accréditée (Smart Contract "IssuerRegistry").
+3. **L'intégrité** : Le contenu du diplôme n'a pas été modifié (Hachage).
+
+---
+
+## 📂 Architecture du Projet
+
+* **`contracts/IssuerRegistry.sol`** : Le Smart Contract (Backend) qui gère la liste blanche des écoles.
+* **`scripts/test_complet.js`** : Script de démonstration exécutant un scénario complet (Émission -> Vérification -> Tentative de fraude).
+* **`scripts/deploy.js`** : Script pour déployer le contrat sur un réseau.
+* **`index.html`** : Interface utilisateur basique pour interagir avec le contrat.
+
+---
+
+## 🛠️ Prérequis
+
+Pour faire tourner ce projet sur une nouvelle machine, vous avez besoin de :
+* **Node.js** (Version 16 ou supérieure) : [Télécharger ici](https://nodejs.org/)
+* Un terminal (PowerShell, Git Bash ou Terminal VS Code).
+
+---
+
+## 🚀 Installation (Pas à pas)
+
+1. **Récupérer le projet**
+   Copiez le dossier du projet sur votre ordinateur.
+
+2. **Installer les dépendances**
+   Ouvrez un terminal dans le dossier du projet et lancez :
+   ```bash
+   npm install

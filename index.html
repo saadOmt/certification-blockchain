@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Démonstration Certification Blockchain</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        body { background-color: #f8f9fa; padding-top: 50px; }
+        .card { box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: none; }
+        .header-title { color: #4F46E5; font-weight: bold; }
+        #resultBox { display: none; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="text-center mb-5">
+        <h1 class="header-title">🎓 Système de Certification Académique</h1>
+        <p class="text-muted">Vérification d'authenticité via Blockchain (Projet ITS3)</p>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">⚙️ Configuration</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Adresse du Smart Contract (IssuerRegistry)</label>
+                        <input type="text" id="contractAddress" class="form-control" placeholder="Coller l'adresse ici (ex: 0x5Fb...)" value="">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-primary text-white">🔍 Vérifier une École</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Adresse Ethereum de l'École à vérifier</label>
+                        <input type="text" id="schoolAddress" class="form-control" placeholder="Ex: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266">
+                        <small class="text-muted">Entrez une adresse publique pour voir si elle est autorisée à émettre des diplômes.</small>
+                    </div>
+                    <button onclick="verifierEcole()" class="btn btn-primary w-100">Vérifier le statut</button>
+
+                    <div id="resultBox" class="alert">
+                        <h4 id="resTitle" class="alert-heading"></h4>
+                        <p id="resText"></p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    // ABI : C'est la "notice" pour que le JS comprenne le Smart Contract
+    const abi = [
+        "function getIssuer(address _issuerAddress) external view returns (string memory name, uint8 status, uint256 date)"
+    ];
+
+    async function verifierEcole() {
+        const contractAddr = document.getElementById("contractAddress").value;
+        const schoolAddr = document.getElementById("schoolAddress").value;
+        const resultBox = document.getElementById("resultBox");
+        const resTitle = document.getElementById("resTitle");
+        const resText = document.getElementById("resText");
+
+        if(!contractAddr || !schoolAddr) {
+            alert("Veuillez remplir l'adresse du contrat et celle de l'école.");
+            return;
+        }
+
+        try {
+            // 1. Connexion à la Blockchain locale (Hardhat Node)
+            const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+            
+            // 2. Connexion au Contrat
+            const contract = new ethers.Contract(contractAddr, abi, provider);
+
+            // 3. Appel de la fonction getIssuer
+            const data = await contract.getIssuer(schoolAddr);
+            
+            // data[0] = Nom, data[1] = Status (0=NONE, 1=ACTIVE, 2=REVOKED)
+            const nom = data[0];
+            const status = Number(data[1]); // Conversion BigInt -> Number
+
+            resultBox.style.display = "block";
+            
+            if (status === 1) {
+                // ACTIVE
+                resultBox.className = "alert alert-success";
+                resTitle.innerText = "✅ École Certifiée";
+                resText.innerText = `L'organisation "${nom}" est officiellement enregistrée et active sur la Blockchain.`;
+            } else if (status === 2) {
+                // REVOKED
+                resultBox.className = "alert alert-warning";
+                resTitle.innerText = "⚠️ École Révoquée";
+                resText.innerText = `L'organisation "${nom}" a été révoquée. Elle ne peut plus émettre de nouveaux diplômes.`;
+            } else {
+                // NONE (0)
+                resultBox.className = "alert alert-danger";
+                resTitle.innerText = "❌ École Inconnue";
+                resText.innerText = "Cette adresse ne correspond à aucune école enregistrée dans le registre.";
+            }
+
+        } catch (error) {
+            console.error(error);
+            resultBox.style.display = "block";
+            resultBox.className = "alert alert-danger";
+            resTitle.innerText = "Erreur Technique";
+            resText.innerText = "Impossible de se connecter au contrat. Vérifiez que 'npx hardhat node' tourne bien.";
+        }
+    }
+</script>
+
+</body>
+</html>
