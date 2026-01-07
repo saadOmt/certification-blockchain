@@ -3,124 +3,145 @@ pragma solidity ^0.8.0;
 
 contract DiplomaCertification {
 
-    // --- STRUCTURES DE DONNÉES ---
+    // --- CONFIGURATION ---
+    uint public constant CONFIRMATIONS_REQUIRED = 2; // Il faut 2 votes pour valider une école
+
+    // --- STRUCTURES ---
+    struct SchoolProposal {
+        string name;
+        uint voteCount;
+        bool executed;
+        mapping(address => bool) hasVoted; // Qui a déjà voté ?
+    }
 
     struct School {
         string name;
-        bool isAuthorized; // Si TRUE = l'école peut émettre. Si FALSE = elle est bloquée.
-        bool exists;       // Pour vérifier si l'école est enregistrée
+        bool isAuthorized;
     }
 
     struct Diploma {
-        string studentName;
-        string degreeLabel; // Ex: "Master 2 Informatique"
         uint256 dateOfIssue;
-        address issuer;     // L'adresse de l'école qui a émis le diplôme
-        bool isValid;       // Si le diplôme est révoqué (triche), passe à FALSE
+        address issuer; // Quelle école a émis ce hash ?
+        bool isValid;
     }
 
-    // --- STOCKAGE (Base de données) ---
-
-    address public admin; // Le Ministère / L'autorité suprême
+    // --- STOCKAGE ---
+    address[] public admins;
+    mapping(address => bool) public isAdmin;
     
-    // Liste des écoles (Adresse wallet => Infos École)
+    // GESTION ÉCOLES (Propositions et Validations)
+    mapping(address => SchoolProposal) public proposals; 
     mapping(address => School) public schools;
 
-    // Liste des diplômes (Code Unique ID => Infos Diplôme)
+    // GESTION DIPLÔMES (RGPD : Clé = HASH du diplôme)
     mapping(bytes32 => Diploma) public diplomas;
 
-    // --- ÉVÉNEMENTS (Pour les logs) ---
-    event SchoolStatusChanged(address indexed schoolAddress, bool isAuthorized);
-    event DiplomaIssued(bytes32 indexed diplomaId, address indexed school, string student);
-    event DiplomaRevoked(bytes32 indexed diplomaId, string reason);
+    // --- ÉVÉNEMENTS ---
+    event ProposalCreated(address indexed school, string name, address indexed proposer);
+    event Voted(address indexed school, address indexed voter, uint currentVotes);
+    event SchoolAuthorized(address indexed school, string name);
+    event SchoolRevoked(address indexed school);
+    event DiplomaIssued(bytes32 indexed dataHash, address indexed issuer);
 
     // --- CONSTRUCTEUR ---
-    constructor() {
-        admin = msg.sender; // Celui qui déploie le contrat devient l'Admin
+    // On définit la liste des admins dès le début
+    constructor(address[] memory _admins) {
+        require(_admins.length >= CONFIRMATIONS_REQUIRED, "Pas assez d'admins !");
+        
+        for (uint i = 0; i < _admins.length; i++) {
+            address adminAddr = _admins[i];
+            require(adminAddr != address(0), "Adresse invalide");
+            require(!isAdmin[adminAddr], "Admin en double");
+
+            isAdmin[adminAddr] = true;
+            admins.push(adminAddr);
+        }
     }
 
-    // --- MODIFIERS (Sécurité) ---
-    
+    // --- MODIFIERS ---
     modifier onlyAdmin() {
-        require(msg.sender == admin, "Seul l'Admin peut faire ca");
+        require(isAdmin[msg.sender], "Acces refuse : Vous n'etes pas Admin");
         _;
     }
 
     modifier onlyAuthorizedSchool() {
-        require(schools[msg.sender].isAuthorized == true, "Ecole non autorisee ou revoquee");
+        require(schools[msg.sender].isAuthorized, "Ecole non autorisee");
         _;
     }
 
-    // --- FONCTIONS ADMIN (Gouvernement) ---
+    // --- 1. GOUVERNANCE (MULTI-SIG) ---
 
-    // 1. Ajouter ou Réactiver une école
-    function addSchool(address _schoolAddress, string memory _name) public onlyAdmin {
-        schools[_schoolAddress] = School(_name, true, true);
-        emit SchoolStatusChanged(_schoolAddress, true);
+    // Étape A : Un admin propose une école (ou vote pour elle si elle existe déjà)
+    function voteForSchool(address _school, string memory _name) public onlyAdmin {
+        SchoolProposal storage p = proposals[_school];
+
+        // Si c'est la première fois qu'on en parle, on crée la proposition
+        if (bytes(p.name).length == 0) {
+            p.name = _name;
+            emit ProposalCreated(_school, _name, msg.sender);
+        }
+
+        require(!p.executed, "Cette ecole est deja traitee");
+        require(!p.hasVoted[msg.sender], "Vous avez deja vote pour cette ecole");
+
+        // On enregistre le vote
+        p.hasVoted[msg.sender] = true;
+        p.voteCount += 1;
+
+        emit Voted(_school, msg.sender, p.voteCount);
+
+        // Si on atteint le seuil (2 votes), on valide l'école !
+        if (p.voteCount >= CONFIRMATIONS_REQUIRED) {
+            p.executed = true;
+            schools[_school] = School(_name, true);
+            emit SchoolAuthorized(_school, _name);
+        }
     }
 
-    // 2. Désactiver une école (Elle ne pourra plus émettre, mais ses anciens diplômes restent)
-    function deactivateSchool(address _schoolAddress) public onlyAdmin {
-        require(schools[_schoolAddress].exists, "L'ecole n'existe pas");
-        schools[_schoolAddress].isAuthorized = false; 
-        // On ne supprime PAS l'école, on change juste son statut.
-        emit SchoolStatusChanged(_schoolAddress, false);
+    // Fonction de sécurité pour révoquer d'urgence (1 seul admin suffit pour bloquer, par sécurité)
+    function revokeSchool(address _school) public onlyAdmin {
+        require(schools[_school].isAuthorized, "Ecole deja inactive");
+        schools[_school].isAuthorized = false;
+        // On reset la proposition pour forcer un re-vote si on veut la remettre
+        delete proposals[_school]; 
+        emit SchoolRevoked(_school);
     }
 
-    // --- FONCTIONS ÉCOLE ---
+    // --- 2. ÉMISSION DIPLÔME (RGPD - HASH ONLY) ---
 
-    // 3. Créer un diplôme
-    // C'est ici que le CODE est généré pour l'étudiant
-    function issueDiploma(string memory _studentName, string memory _degreeLabel) public onlyAuthorizedSchool returns (bytes32) {
-        
-        // Création d'un ID unique (Hash) basé sur les infos + le temps actuel
-        bytes32 diplomaId = keccak256(abi.encodePacked(msg.sender, _studentName, _degreeLabel, block.timestamp));
+    // L'école envoie UNIQUEMENT le Hash (Calculé en JS : Nom + Diplôme + Secret)
+    function issueDiploma(bytes32 _dataHash) public onlyAuthorizedSchool {
+        require(diplomas[_dataHash].dateOfIssue == 0, "Ce diplome existe deja !");
 
-        diplomas[diplomaId] = Diploma({
-            studentName: _studentName,
-            degreeLabel: _degreeLabel,
+        diplomas[_dataHash] = Diploma({
             dateOfIssue: block.timestamp,
             issuer: msg.sender,
             isValid: true
         });
 
-        emit DiplomaIssued(diplomaId, msg.sender, _studentName);
-        
-        return diplomaId; // C'est ce CODE que l'école donne à l'étudiant
+        emit DiplomaIssued(_dataHash, msg.sender);
     }
 
-    // 4. Révoquer un diplôme spécifique (ex: triche)
-    function revokeDiploma(bytes32 _diplomaId) public {
-        Diploma storage d = diplomas[_diplomaId];
-        
-        // Seule l'école qui a émis le diplôme peut le révoquer
-        require(d.issuer == msg.sender, "Ce n'est pas votre diplome");
-        
-        d.isValid = false;
-        emit DiplomaRevoked(_diplomaId, "Diplome revoque par l'ecole");
-    }
+    // --- 3. VÉRIFICATION ---
 
-    // --- FONCTION PUBLIQUE (Vérification) ---
-
-    // 5. Vérifier un diplôme avec son CODE
-    function verifyDiploma(bytes32 _diplomaId) public view returns (
-        string memory student, 
-        string memory degree, 
-        uint256 date, 
-        string memory schoolName, 
-        bool isDiplomaValid, 
-        bool isSchoolStillAuthorized
+    function verifyDiploma(bytes32 _hashToVerify) public view returns (
+        bool isValid,
+        uint256 date,
+        string memory schoolName,
+        bool isSchoolActive
     ) {
-        Diploma memory d = diplomas[_diplomaId];
-        require(d.issuer != address(0), "Diplome introuvable");
+        Diploma memory d = diplomas[_hashToVerify];
+        
+        // Si date == 0, le diplôme n'existe pas
+        if (d.dateOfIssue == 0) {
+            return (false, 0, "", false);
+        }
 
         return (
-            d.studentName,
-            d.degreeLabel,
+            d.isValid,
             d.dateOfIssue,
-            schools[d.issuer].name, // On récupère le nom de l'école
-            d.isValid,              // Le diplôme est-il valide ?
-            schools[d.issuer].isAuthorized // L'école existe-t-elle encore aujourd'hui ?
+            schools[d.issuer].name,
+            schools[d.issuer].isAuthorized
         );
     }
 }

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Vérification Diplôme</title>
+    <title>Vérification Sécurisée</title>
     <style>
         body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f0fdf4; }
         .card { background: white; padding: 30px; border-radius: 12px; border-left: 6px solid #28a745; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -10,73 +10,84 @@
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         button:hover { background-color: #1e7e34; }
-        .result-box { margin-top: 20px; padding: 15px; background: white; border: 1px solid #ddd; border-radius: 6px; display: none; }
-        .valid { color: #28a745; font-weight: bold; font-size: 1.2em; }
-        .warning { color: orange; font-weight: bold; font-size: 1.2em; }
-        .invalid { color: #dc3545; font-weight: bold; font-size: 1.2em; }
+        .result-box { margin-top: 20px; padding: 15px; background: white; border: 1px solid #ddd; border-radius: 6px; display: none; text-align: center;}
+        .valid { color: #28a745; font-weight: bold; font-size: 1.5em; }
+        .invalid { color: #dc3545; font-weight: bold; font-size: 1.5em; }
         .nav { text-align: center; margin-bottom: 20px; }
         a { margin: 0 10px; text-decoration: none; color: #555; font-weight: bold; }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <!-- MISE À JOUR VERSION 6.13.2 POUR CORRIGER LE HASHAGE -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
 </head>
 <body>
     <div class="nav">
-        <a href="ecole.html"><- Retour École</a>
+        <a href="ecole.html"><- École</a> | <strong>Vérification (Zero Knowledge)</strong>
     </div>
 
     <h1>🌍 Portail de Vérification</h1>
 
     <div class="card">
-        <h2>Vérifier un code étudiant</h2>
-        <p>Espace public pour les recruteurs.</p>
+        <h2>Prouver l'authenticité</h2>
+        <p>Veuillez saisir les informations présentes sur le diplôme papier (y compris le code secret).</p>
         
-        <input type="text" id="codeToVerify" placeholder="Collez le code (0x...)">
-        <button onclick="verify()">Vérifier l'authenticité</button>
+        <input type="text" id="vName" placeholder="Nom Étudiant">
+        <input type="text" id="vDegree" placeholder="Diplôme">
+        <input type="text" id="vSecret" placeholder="Le SECRET (0x...)">
+        
+        <button onclick="verify()">Reconstruire la Preuve</button>
 
         <div id="result" class="result-box"></div>
     </div>
 
     <script>
-        // --- COLLE TON ADRESSE ICI ---
-        const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; 
-        // -----------------------------
+        // --- REMPLACE PAR TON ADRESSE DE CONTRAT ---
+        const contractAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3"; 
+        // -------------------------------------------
 
-        const abi = [ "function verifyDiploma(bytes32) public view returns (string, string, uint256, string, bool, bool)" ];
+        const abi = [ "function verifyDiploma(bytes32) public view returns (bool, uint256, string, bool)" ];
 
         async function verify() {
-            const code = document.getElementById("codeToVerify").value;
+            const name = document.getElementById("vName").value.trim();
+            const degree = document.getElementById("vDegree").value.trim();
+            const secret = document.getElementById("vSecret").value.trim();
             const output = document.getElementById("result");
             
             output.style.display = "block";
-            output.innerText = "Vérification...";
+            output.innerText = "Calcul du Hash et Vérification...";
 
             try {
-                const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/");
-                const contract = new ethers.Contract(contractAddress, abi, provider);
-                const data = await contract.verifyDiploma(code);
-                
-                // data = [Nom, Titre, Date, EcoleNom, DiplomeValide, EcoleActive]
-                const date = new Date(Number(data[2]) * 1000).toLocaleDateString();
-                
-                let statusHtml = "";
-                if(data[4] && data[5]) {
-                    statusHtml = "<div class='valid'>✅ DIPLÔME VALIDE</div>";
-                } else if(data[4] && !data[5]) {
-                    statusHtml = "<div class='warning'>⚠️ VALIDE (Mais école fermée)</div>";
-                } else {
-                    statusHtml = "<div class='invalid'>❌ INVALIDE</div>";
-                }
+                // 1. RECONSTRUCTION DU HASH
+                const rebuiltHash = ethers.solidityPackedKeccak256(
+                    ["string", "string", "bytes32"], 
+                    [name, degree, secret]
+                );
 
-                output.innerHTML = `
-                    ${statusHtml}
-                    <br>
-                    <strong>Étudiant :</strong> ${data[0]}<br>
-                    <strong>Diplôme :</strong> ${data[1]}<br>
-                    <strong>École :</strong> ${data[3]}<br>
-                    <strong>Date :</strong> ${date}
-                `;
+                console.log("Hash reconstruit:", rebuiltHash);
+
+                const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/", undefined, { staticNetwork: true });
+                const contract = new ethers.Contract(contractAddress, abi, provider);
+                
+                const data = await contract.verifyDiploma(rebuiltHash);
+                
+                const isValid = data[0];
+                const schoolName = data[2];
+
+                if(isValid) {
+                    output.innerHTML = `
+                        <div class='valid'>✅ AUTHENTIQUE</div>
+                        <p>Certifié par : <strong>${schoolName}</strong></p>
+                        <small>La preuve cryptographique correspond.</small>
+                    `;
+                } else {
+                    output.innerHTML = `
+                        <div class='invalid'>❌ INCONNU / FALSIFIÉ</div>
+                        <p>Aucune trace de ce hash sur la blockchain.</p>
+                        <small>Vérifiez le secret.</small>
+                    `;
+                }
             } catch(err) {
-                output.innerHTML = "<div class='invalid'>❌ Code introuvable.</div>";
+                console.error(err);
+                output.innerHTML = "<div class='invalid'>❌ Erreur Technique</div><br>" + err.message;
             }
         }
     </script>

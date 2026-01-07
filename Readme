@@ -1,106 +1,120 @@
-🎓 Système de Certification de Diplômes sur Blockchain (BBC)
+🎓 Système de Certification Blockchain (BBC) - Édition Expert
 
-Ce projet est une application décentralisée (DApp) permettant l'émission et la vérification de diplômes numériques infalsifiables via une Blockchain Ethereum locale (Hardhat).
+Ce projet est une application décentralisée (DApp) de certification de diplômes sur Ethereum.
+Il implémente une architecture RGPD (Respect de la vie privée) et une gouvernance Multi-Signature.
 
-Le système garantit que :
+🚀 Fonctionnalités Avancées
 
-Seules les écoles autorisées par l'administrateur (Ministère) peuvent émettre des diplômes.
+Contrairement aux systèmes basiques, cette version V3 inclut :
 
-Les diplômes sont infalsifiables et ancrés dans la blockchain.
+1. Confidentialité Totale (Zero-Knowledge)
 
-N'importe qui (recruteurs) peut vérifier la validité d'un diplôme instantanément.
+Problème : Sur une blockchain publique, afficher "Saad a un Master" est une violation de la vie privée.
 
-🚀 Fonctionnalités & Rôles
+Solution : Ce projet ne stocke JAMAIS les données personnelles sur la blockchain.
 
-Le système est divisé en 3 interfaces distinctes pour simuler les acteurs réels :
+Mécanisme : Seule une empreinte cryptographique (Hash) unique est stockée.
 
-Ministère / Admin (index.html)
+Hash = Keccak256(Nom + Diplôme + Code Secret)
 
-Déploiement du contrat intelligent.
+Vérification : Le recruteur ne peut vérifier le diplôme que s'il possède le "Code Secret" fourni par l'étudiant.
 
-Ajout (Whitelisting) de nouvelles écoles.
+2. Gouvernance Démocratique (Multi-Sig)
 
-Révocation (Blocage) d'écoles existantes.
+Problème : Un administrateur unique ("Dieu") est un point de défaillance critique (piratage, corruption).
 
-Écoles (ecole.html)
+Solution : L'ajout d'une nouvelle école nécessite un consensus.
 
-Interface connectée au wallet de l'école.
+Mécanisme : Il faut 2 signatures d'administrateurs différents (sur 3 existants) pour autoriser une école.
 
-Émission de diplômes (Signature numérique).
+🛠️ Installation & Démarrage
 
-Génération de l'identifiant unique (Hash) du diplôme.
+Prérequis
 
-Recruteurs / Public (entreprise.html)
+Node.js
 
-Interface publique sans connexion requise.
+Git
 
-Vérification de l'authenticité via le code unique.
+Extension "Live Server" (recommandé) ou simple ouverture des fichiers HTML.
 
-Vérification du statut de l'école (Active ou Fermée).
-
-🛠️ Prérequis Techniques
-
-Node.js (v14 ou supérieur)
-
-VS Code
-
-Hardhat (Environnement de développement Ethereum)
-
-📦 Installation
-
-Cloner ou télécharger le dossier du projet.
-
-Ouvrir un terminal dans le dossier racine.
-
-Installer les dépendances :
+1. Installation des dépendances
 
 npm install
 
 
-⚡ Démarrage Rapide
+2. Lancer la Blockchain Locale
 
-1. Lancer la Blockchain Locale
-
-Ouvrez un terminal VS Code et lancez :
+Ouvrez un terminal et lancez le nœud Hardhat (ne jamais fermer ce terminal) :
 
 npx hardhat node
 
 
-Cela démarre un réseau Ethereum local avec 20 comptes de test.
+3. Déployer le Smart Contract V3
 
-2. Déployer le Smart Contract
-
-Ouvrez un deuxième terminal et lancez :
+Ouvrez un second terminal et lancez le script qui configure automatiquement les 3 Admins :
 
 npx hardhat run scripts/deploy.js --network localhost
 
 
-Le script déploiera le contrat et vous inscrira automatiquement comme Admin.
+👉 Copiez l'adresse du contrat qui s'affiche (ex: 0x5FbDB...).
 
-3. Configuration Frontend
+4. Configuration
 
-Copiez l'adresse du contrat affichée dans le terminal (ex: 0x5FbDB...).
+Ouvrez les fichiers index.html, ecole.html et entreprise.html.
+Remplacez la ligne suivante par votre adresse :
 
-Collez cette adresse dans la variable const contractAddress au début des 3 fichiers HTML (index.html, ecole.html, entreprise.html).
+const contractAddress = "VOTRE_ADRESSE_ICI";
+
+
+🧪 Guide de Démonstration (Scénario)
+
+Suivez ces étapes pour présenter le projet :
+
+Étape 1 : Gouvernance Multi-Sig (index.html)
+
+Connectez-vous en tant qu'Admin 1.
+
+Entrez l'adresse d'une école candidate (ex: l'Account #13 de Hardhat : 0x1CBd...).
+
+Votez. -> Le système indique "Vote pris en compte (1/2)".
+
+Changez d'identité : Connectez-vous en tant qu'Admin 2.
+
+Votez pour la même école.
+
+-> Le système indique "✅ SUCCÈS : École autorisée".
+
+Étape 2 : Émission Privacy (ecole.html)
+
+L'école (Account #13) remplit le nom de l'étudiant et le diplôme.
+
+Elle clique sur "Hasher & Émettre".
+
+Magie : Le site génère un SECRET aléatoire.
+
+La blockchain reçoit le Hash, mais l'écran affiche les données pour impression papier.
+
+Étape 3 : Vérification Zéro-Knowledge (entreprise.html)
+
+Le recruteur reçoit le diplôme papier avec le SECRET.
+
+Il entre : Nom + Diplôme + Secret.
+
+Il clique sur "Reconstruire la Preuve".
+
+Le site recalcule le Hash et interroge la blockchain.
+
+Si tout correspond : ✅ AUTHENTIQUE.
+
+Si une seule lettre change : ❌ FALSIFIÉ.
 
 🏗️ Architecture Technique
 
-Smart Contract (contracts/DiplomaCertification.sol) : Écrit en Solidity. Il contient la structure de données Diploma et School, ainsi que les événements DiplomaIssued.
+Smart Contract (.sol) : Solidity 0.8.x. Utilise des mapping pour les votes et les hashs.
 
-Script de Déploiement (scripts/deploy.js) : Gère la mise en ligne du contrat sur le réseau local.
+Backend : Hardhat Local Node (Simulateur Ethereum).
 
-Frontend : HTML5, CSS3 et Ethers.js pour l'interaction avec le nœud Blockchain via RPC.
+Frontend : HTML5 / CSS3 / Ethers.js v6.13.2.
 
-🛑 Dépannage
+Sécurité : Protection contre les erreurs ENS, gestion des nonces, et nettoyage des entrées (trim()).
 
-Erreur : "Nonce too high"
-
-Cela arrive si vous relancez npx hardhat node. La blockchain repart à zéro mais votre navigateur (Metamask) a gardé l'ancien historique.
-
-Solution : Relancez le déploiement et assurez-vous de mettre à jour l'adresse du contrat dans les fichiers HTML.
-
-Erreur : "Ecole non autorisee"
-
-Vérifiez que vous avez bien ajouté l'adresse du compte utilisé par ecole.html (Account #1) via la page Admin (index.html).
-
-Projet réalisé dans le cadre du cours Blockchain - ITS3

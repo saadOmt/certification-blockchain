@@ -2,74 +2,108 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Ministère - Admin</title>
+    <title>Gouvernance Multi-Sig</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; }
+        body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; }
         .card { background: white; padding: 30px; border-radius: 12px; border-left: 6px solid #6f42c1; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h1 { color: #6f42c1; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background-color: #6f42c1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #5a32a3; }
         .nav { text-align: center; margin-bottom: 20px; }
         a { margin: 0 10px; text-decoration: none; color: #555; font-weight: bold; }
+        
+        select, input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #6f42c1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #5a32a3; }
+        .status-log { margin-top: 20px; padding: 10px; background: #eee; border-radius: 5px; font-family: monospace; white-space: pre-wrap; }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <!-- MISE À JOUR VERSION 6.13.2 POUR CORRIGER LES BUGS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
 </head>
 <body>
     <div class="nav">
-        Using: <strong>Admin (Compte #0)</strong> | <a href="ecole.html">Aller vers École -></a>
+        <strong>Ministère (Multi-Sig)</strong> | <a href="ecole.html">Aller vers École -></a>
     </div>
 
-    <h1>🏛️ Ministère (Admin)</h1>
+    <h1>🏛️ Conseil d'Administration</h1>
 
     <div class="card">
-        <h2>Ajouter une École Officielle</h2>
-        <p>Autoriser une adresse Ethereum à émettre des diplômes.</p>
+        <label>👤 <strong>Qui vote ?</strong></label>
+        <select id="adminSelector">
+            <option value="0">Admin 1 (Compte #0)</option>
+            <option value="1">Admin 2 (Compte #1)</option>
+            <option value="2">Admin 3 (Compte #2)</option>
+        </select>
+
+        <h3>🗳️ Voter pour une École</h3>
+        <p>Il faut <strong>2 signatures</strong> pour valider une école.</p>
         
         <label>Adresse de l'école :</label>
-        <input type="text" id="newSchoolAddress" value="0x70997970C51812dc3A010C7d01b50e0d17dc79C8">
+        <input type="text" id="schoolAddr" value="0x1CBd3b2770909D4e10f157cABC84C7264073C9Ec">
         
         <label>Nom de l'école :</label>
-        <input type="text" id="newSchoolName" value="ESCP Europe">
+        <input type="text" id="schoolName" placeholder="Ex: HEC Paris">
         
-        <button onclick="addSchool()">✅ Autoriser cette École</button>
-        <br><br>
-        <button onclick="revokeSchool()" style="background-color: #dc3545;">⛔ Bloquer cette École</button>
+        <button onclick="vote()">✍️ Voter / Signer</button>
+
+        <div id="logs" class="status-log" style="display:none;"></div>
     </div>
 
     <script>
-        // --- COLLE TON ADRESSE ICI ---
-        const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; 
-        // -----------------------------
+        // --- REMPLACE PAR TON ADRESSE DE CONTRAT ---
+        const contractAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3"; 
+        // -------------------------------------------
 
-        const abi = [ "function addSchool(address, string) public", "function deactivateSchool(address) public" ];
+        const abi = [ 
+            "function voteForSchool(address, string) public",
+            "event Voted(address indexed school, address indexed voter, uint currentVotes)",
+            "event SchoolAuthorized(address indexed school, string name)"
+        ];
 
-        async function addSchool() {
+        async function vote() {
+            const adminIndex = document.getElementById("adminSelector").value;
+            const schoolAddr = document.getElementById("schoolAddr").value.trim();
+            const schoolName = document.getElementById("schoolName").value.trim();
+            const logBox = document.getElementById("logs");
+
+            if(!schoolAddr) return alert("Adresse manquante");
+
+            logBox.style.display = "block";
+            logBox.innerText = `Connexion Admin ${parseInt(adminIndex)+1}...`;
+
             try {
-                const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/");
-                const signer = await provider.getSigner(0); // Compte #0 (Admin)
+                const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/", undefined, { staticNetwork: true });
+                const signer = await provider.getSigner(parseInt(adminIndex));
                 const contract = new ethers.Contract(contractAddress, abi, signer);
 
-                const addr = document.getElementById("newSchoolAddress").value;
-                const name = document.getElementById("newSchoolName").value;
+                logBox.innerText += "\nEnvoi du vote...";
+                const tx = await contract.voteForSchool(schoolAddr, schoolName);
+                const receipt = await tx.wait();
 
-                const tx = await contract.addSchool(addr, name);
-                await tx.wait();
-                alert(`Succès ! ${name} est maintenant autorisée.`);
-            } catch(err) { alert("Erreur : " + err.message); }
-        }
+                let authorized = false;
+                let currentVotes = "?";
 
-        async function revokeSchool() {
-            try {
-                const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/");
-                const signer = await provider.getSigner(0);
-                const contract = new ethers.Contract(contractAddress, abi, signer);
-                
-                const addr = document.getElementById("newSchoolAddress").value;
-                const tx = await contract.deactivateSchool(addr);
-                await tx.wait();
-                alert(`L'école ${addr} a été désactivée.`);
-            } catch(err) { alert("Erreur : " + err.message); }
+                for (const log of receipt.logs) {
+                    try {
+                        const parsed = contract.interface.parseLog(log);
+                        if (parsed.name === "SchoolAuthorized") authorized = true;
+                        if (parsed.name === "Voted") currentVotes = parsed.args[2];
+                    } catch(e){}
+                }
+
+                if (authorized) {
+                    logBox.innerHTML += `\n\n✅ SUCCÈS : L'école est autorisée !`;
+                    logBox.style.borderLeft = "5px solid green";
+                } else {
+                    logBox.innerHTML += `\n\n⚠️ Vote pris en compte (Total: ${currentVotes}/2). Changez d'admin !`;
+                    logBox.style.borderLeft = "5px solid orange";
+                }
+            } catch(err) {
+                console.error(err);
+                if(err.message.includes("deja traitee")) {
+                    logBox.innerText += "\n❌ Info : Cette école a déjà reçu votre vote ou est déjà validée.";
+                } else {
+                    logBox.innerText += "\n❌ Erreur : " + err.message;
+                }
+            }
         }
     </script>
 </body>
