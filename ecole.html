@@ -2,124 +2,86 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Espace École (Privacy)</title>
+    <title>Espace Ecole</title>
     <style>
         body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #eef2f6; }
+        .nav { background: #333; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px; }
+        .nav a { color: white; text-decoration: none; margin: 0 15px; font-weight: bold; }
+        .nav a:hover { text-decoration: underline; color: #ddd; }
+
         .card { background: white; padding: 30px; border-radius: 12px; border-left: 6px solid #007bff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h1 { color: #007bff; text-align: center; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         button:hover { background-color: #0056b3; }
-        .nav { text-align: center; margin-bottom: 20px; }
-        a { margin: 0 10px; text-decoration: none; color: #555; font-weight: bold; }
-
-        .diploma-paper { border: 10px solid #ddd; padding: 20px; margin-top: 20px; text-align: center; background: #fffdf0; display: none; }
-        .secret-key { font-family: monospace; font-size: 1.3em; color: #d63384; background: #eee; padding: 10px; display: block; margin: 10px 0; word-break: break-all; }
-        #statusMessage { margin-top: 10px; font-weight: bold; color: #555; display: none; }
     </style>
-    <!-- MISE À JOUR VERSION 6.13.2 POUR CORRIGER LE HASHAGE -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
 </head>
 <body>
     <div class="nav">
-        <a href="index.html"><- Admin</a> | <strong>École (Privacy Mode)</strong> | <a href="entreprise.html">Entreprise -></a>
+        <a href="index.html">Admin</a> |
+        <a href="ecole.html">Ecole</a> |
+        <a href="etudiant.html">Etudiant</a> |
+        <a href="entreprise.html">Verificateur</a>
     </div>
 
-    <h1>🏫 Émission de Diplôme RGPD</h1>
-
+    <h1>Emission de Verifiable Credential (W3C)</h1>
     <div class="card">
-        <label>Adresse École (Signataire) :</label>
+        <label>Adresse Ecole (Signataire) :</label>
         <input type="text" id="signerAddress" value="0x1CBd3b2770909D4e10f157cABC84C7264073C9Ec">
-
-        <label>Données du diplôme (Ne quitteront pas cette page) :</label>
-        <input type="text" id="studentName" placeholder="Nom Étudiant (ex: Saad)">
-        <input type="text" id="degreeLabel" placeholder="Diplôme (ex: Master IA)">
-        
-        <button onclick="issueDiploma()">🔒 Hasher & Émettre</button>
-        <div id="statusMessage"></div>
-    </div>
-
-    <div id="paperDiploma" class="diploma-paper">
-        <h2>🎓 DIPLÔME OFFICIEL</h2>
-        <p>Ceci est votre preuve papier. Gardez le SECRET précieusement.</p>
-        <p><strong>Nom :</strong> <span id="outName"></span></p>
-        <p><strong>Titre :</strong> <span id="outDegree"></span></p>
-        <hr>
-        <p><strong>SECRET DE VÉRIFICATION :</strong></p>
-        <span id="outSecret" class="secret-key"></span>
-        <hr>
-        <small>Hash sur Blockchain : <span id="outHash"></span></small>
+        <input type="text" id="studentName" placeholder="Nom Etudiant">
+        <input type="text" id="degreeLabel" placeholder="Diplome">
+        <button onclick="issueVC()">Generer le Fichier JSON (VC)</button>
     </div>
 
     <script>
-        // --- REMPLACE PAR TON ADRESSE DE CONTRAT ---
-        const contractAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3"; 
-        // -------------------------------------------
+        const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; // ⚠️ A REMPLACER
+        const abi = ["function issueDiploma(bytes32) public"];
 
-        const abi = [ "function issueDiploma(bytes32) public" ];
-
-        async function issueDiploma() {
+        async function issueVC() {
             const name = document.getElementById("studentName").value.trim();
             const degree = document.getElementById("degreeLabel").value.trim();
             const signerAddr = document.getElementById("signerAddress").value.trim();
-            const msgBox = document.getElementById("statusMessage");
 
-            if(!name || !signerAddr) return alert("Remplissez tout !");
+            if(!name || !degree) return alert("Remplissez tout !");
 
-            // 1. Génération du Secret
-            const randomBytes = new Uint8Array(32);
-            crypto.getRandomValues(randomBytes);
-            const secret = ethers.hexlify(randomBytes);
+            const secret = ethers.hexlify(ethers.randomBytes(32));
+            const hash = ethers.solidityPackedKeccak256(["string","string","bytes32"], [name, degree, secret]);
 
             try {
-                // 2. Calcul du Hash (C'est ici que ça plantait avec l'ancienne version)
-                const dataHash = ethers.solidityPackedKeccak256(
-                    ["string", "string", "bytes32"], 
-                    [name, degree, secret]
-                );
-
-                // Affichage immédiat pour le test
-                document.getElementById("outName").innerText = name;
-                document.getElementById("outDegree").innerText = degree;
-                document.getElementById("outSecret").innerText = secret;
-                document.getElementById("outHash").innerText = dataHash.substring(0, 20) + "...";
-                document.getElementById("paperDiploma").style.display = "block";
-                document.getElementById("paperDiploma").scrollIntoView({behavior: "smooth"});
-
-                msgBox.style.display = "block";
-                msgBox.innerText = "Signature et envoi à la blockchain...";
-                msgBox.style.color = "blue";
-
                 const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/", undefined, { staticNetwork: true });
-                const accounts = await provider.listAccounts();
-                
                 let signer = null;
                 for(let i=0; i<20; i++) {
                     const s = await provider.getSigner(i);
-                    if(s.address.toLowerCase() === signerAddr.toLowerCase()) {
-                        signer = s;
-                        break;
-                    }
+                    if(s.address.toLowerCase() === signerAddr.toLowerCase()) { signer = s; break; }
                 }
                 
-                if(!signer) throw new Error(`L'adresse ${signerAddr} n'est pas connectée dans Hardhat.`);
+                if(!signer) return alert("Adresse ecole introuvable dans Hardhat");
 
                 const contract = new ethers.Contract(contractAddress, abi, signer);
                 
-                const tx = await contract.issueDiploma(dataHash);
-                msgBox.innerText = "Transaction envoyée ! Attente de validation...";
+                alert("Signature sur la blockchain en cours...");
+                const tx = await contract.issueDiploma(hash);
                 await tx.wait();
 
-                msgBox.innerText = "✅ SUCCÈS : Hash ancré dans la Blockchain !";
-                msgBox.style.color = "green";
-                alert("Diplôme validé sur la Blockchain !");
+                // Creation du JSON W3C
+                const verifiableCredential = {
+                    "@context": ["https://www.w3.org/2018/credentials/v1"],
+                    "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+                    "issuer": signerAddr,
+                    "issuanceDate": new Date().toISOString(),
+                    "credentialSubject": { "name": name, "degree": degree, "secret_key": secret },
+                    "proof": { "type": "EthereumHash", "hash": hash }
+                };
 
-            } catch(err) {
-                console.error(err);
-                msgBox.innerText = "❌ ERREUR : " + err.message;
-                msgBox.style.color = "red";
-                alert("Une erreur est survenue (voir logs console).");
-            }
+                const blob = new Blob([JSON.stringify(verifiableCredential, null, 2)], {type : 'application/json'});
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `VC_${name}.json`;
+                a.click();
+                alert("Succes ! Fichier JSON telecharge.");
+
+            } catch(e) { console.error(e); alert("Erreur : " + e.message); }
         }
     </script>
 </body>

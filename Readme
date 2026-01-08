@@ -1,120 +1,120 @@
-🎓 Système de Certification Blockchain (BBC) - Édition Expert
+🎓 Système de Certification Blockchain (BBC) - Version Finale (V4)
 
-Ce projet est une application décentralisée (DApp) de certification de diplômes sur Ethereum.
-Il implémente une architecture RGPD (Respect de la vie privée) et une gouvernance Multi-Signature.
+Ce projet est une DApp (Application Décentralisée) complète de certification de diplômes sur Ethereum.
+Il respecte les normes RGPD (Privacy-first) et utilise le modèle W3C Verifiable Credentials.
 
-🚀 Fonctionnalités Avancées
+🚀 Architecture & Fonctionnalités
 
-Contrairement aux systèmes basiques, cette version V3 inclut :
+Le système repose sur 4 piliers :
 
-1. Confidentialité Totale (Zero-Knowledge)
+1. Gouvernance Démocratique (Multi-Sig)
 
-Problème : Sur une blockchain publique, afficher "Saad a un Master" est une violation de la vie privée.
+Problème : Un administrateur unique est un risque de sécurité.
 
-Solution : Ce projet ne stocke JAMAIS les données personnelles sur la blockchain.
+Solution : L'ajout d'une école nécessite un consensus de 2 administrateurs sur 3.
 
-Mécanisme : Seule une empreinte cryptographique (Hash) unique est stockée.
+Révocation : Un admin peut révoquer une école frauduleuse à tout moment.
 
-Hash = Keccak256(Nom + Diplôme + Code Secret)
+2. Confidentialité (Zéro-Knowledge)
 
-Vérification : Le recruteur ne peut vérifier le diplôme que s'il possède le "Code Secret" fourni par l'étudiant.
+Données : Aucune donnée personnelle (Nom, Note) n'est stockée sur la Blockchain. Seule l'empreinte cryptographique (Hash) est ancrée.
 
-2. Gouvernance Démocratique (Multi-Sig)
+Sécurité : Impossible de retrouver le nom d'un étudiant à partir de la blockchain.
 
-Problème : Un administrateur unique ("Dieu") est un point de défaillance critique (piratage, corruption).
+3. Standard W3C (Verifiable Credentials)
 
-Solution : L'ajout d'une nouvelle école nécessite un consensus.
+Émission : L'école ne donne pas juste un "code", elle génère un fichier JSON certifié (le Verifiable Credential) que l'étudiant télécharge et conserve.
 
-Mécanisme : Il faut 2 signatures d'administrateurs différents (sur 3 existants) pour autoriser une école.
+Souveraineté (Self-Sovereign Identity) : L'étudiant est le seul propriétaire de son diplôme numérique.
 
-🛠️ Installation & Démarrage
+4. Vérification par Token Temporaire
+
+Partage : L'étudiant ne donne pas son fichier JSON au recruteur (trop sensible).
+
+Token : Il génère une Preuve Temporaire (Token) sur la blockchain, valide pour une durée limitée (ex: 1 heure).
+
+Vérificateur : Le recruteur utilise ce token pour vérifier l'authenticité sans voir les données brutes.
+
+🛠️ Installation Technique
 
 Prérequis
 
-Node.js
+Node.js & NPM
 
 Git
 
-Extension "Live Server" (recommandé) ou simple ouverture des fichiers HTML.
+Navigateur Web (Chrome/Firefox)
 
-1. Installation des dépendances
+Démarrage
+
+Installer les dépendances :
 
 npm install
 
 
-2. Lancer la Blockchain Locale
-
-Ouvrez un terminal et lancez le nœud Hardhat (ne jamais fermer ce terminal) :
+Lancer la Blockchain Locale :
+Ouvrez un terminal et lancez :
 
 npx hardhat node
 
 
-3. Déployer le Smart Contract V3
+(Laissez ce terminal ouvert !)
 
-Ouvrez un second terminal et lancez le script qui configure automatiquement les 3 Admins :
+Déployer le Smart Contract :
+Ouvrez un deuxième terminal et lancez :
 
 npx hardhat run scripts/deploy.js --network localhost
 
 
-👉 Copiez l'adresse du contrat qui s'affiche (ex: 0x5FbDB...).
+👉 Copiez l'adresse du contrat (ex: 0x5Fb...) qui s'affiche.
 
-4. Configuration
+Configuration :
+Collez cette adresse dans la variable contractAddress au début des 4 fichiers HTML : index.html, ecole.html, etudiant.html, entreprise.html.
 
-Ouvrez les fichiers index.html, ecole.html et entreprise.html.
-Remplacez la ligne suivante par votre adresse :
+🧪 Scénario de Démonstration
 
-const contractAddress = "VOTRE_ADRESSE_ICI";
+Suivez ce script pour présenter le projet :
 
+Étape 1 : Gouvernance (index.html)
 
-🧪 Guide de Démonstration (Scénario)
+Connectez-vous en Admin 1. Entrez l'adresse de l'école (ex: 0x1CBd...). Cliquez sur Voter.
 
-Suivez ces étapes pour présenter le projet :
+Connectez-vous en Admin 2. Votez pour la même école.
 
-Étape 1 : Gouvernance Multi-Sig (index.html)
+✅ Succès : L'école est accréditée.
 
-Connectez-vous en tant qu'Admin 1.
+Étape 2 : Émission (ecole.html)
 
-Entrez l'adresse d'une école candidate (ex: l'Account #13 de Hardhat : 0x1CBd...).
+L'école remplit les infos (Nom: Saad, Diplôme: Master).
 
-Votez. -> Le système indique "Vote pris en compte (1/2)".
+Cliquez sur "Générer le Fichier JSON".
 
-Changez d'identité : Connectez-vous en tant qu'Admin 2.
+✅ Le fichier VC_Saad.json est téléchargé. C'est le diplôme numérique.
 
-Votez pour la même école.
+Étape 3 : Étudiant (etudiant.html)
 
--> Le système indique "✅ SUCCÈS : École autorisée".
+L'étudiant importe son fichier VC_Saad.json.
 
-Étape 2 : Émission Privacy (ecole.html)
+Il choisit une durée (ex: 1 heure) et clique sur "Créer Token".
 
-L'école (Account #13) remplit le nom de l'étudiant et le diplôme.
+✅ La blockchain génère un Token unique (ex: 0xabc...).
 
-Elle clique sur "Hasher & Émettre".
+Étape 4 : Recruteur (entreprise.html)
 
-Magie : Le site génère un SECRET aléatoire.
+Le recruteur colle le Token reçu.
 
-La blockchain reçoit le Hash, mais l'écran affiche les données pour impression papier.
+Il clique sur Vérifier.
 
-Étape 3 : Vérification Zéro-Knowledge (entreprise.html)
+✅ Le système confirme : "Token Valide" et "École Active".
 
-Le recruteur reçoit le diplôme papier avec le SECRET.
+🛑 Dépannage Rapide
 
-Il entre : Nom + Diplôme + Secret.
+Erreur "Déjà traitée" ou "Nonce too high" ?
 
-Il clique sur "Reconstruire la Preuve".
+Relancez npx hardhat node (reset de la blockchain) et redéployez le contrat.
 
-Le site recalcule le Hash et interroge la blockchain.
+Erreur de lecture / Value 0x ?
 
-Si tout correspond : ✅ AUTHENTIQUE.
+Vérifiez que vous avez bien copié la nouvelle adresse du contrat dans les fichiers HTML après un redémarrage.
 
-Si une seule lettre change : ❌ FALSIFIÉ.
-
-🏗️ Architecture Technique
-
-Smart Contract (.sol) : Solidity 0.8.x. Utilise des mapping pour les votes et les hashs.
-
-Backend : Hardhat Local Node (Simulateur Ethereum).
-
-Frontend : HTML5 / CSS3 / Ethers.js v6.13.2.
-
-Sécurité : Protection contre les erreurs ENS, gestion des nonces, et nettoyage des entrées (trim()).
-
+Projet réalisé pour le cours Blockchain - ITS3

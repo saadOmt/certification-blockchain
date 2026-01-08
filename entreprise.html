@@ -2,93 +2,102 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Vérification Sécurisée</title>
+    <title>Verification</title>
     <style>
         body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f0fdf4; }
-        .card { background: white; padding: 30px; border-radius: 12px; border-left: 6px solid #28a745; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .nav { background: #333; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px; }
+        .nav a { color: white; text-decoration: none; margin: 0 15px; font-weight: bold; }
+        .nav a:hover { text-decoration: underline; color: #ddd; }
+
+        .card { background: white; padding: 30px; border-radius: 12px; border-left: 6px solid #28a745; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
         h1 { color: #28a745; text-align: center; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #1e7e34; }
         .result-box { margin-top: 20px; padding: 15px; background: white; border: 1px solid #ddd; border-radius: 6px; display: none; text-align: center;}
-        .valid { color: #28a745; font-weight: bold; font-size: 1.5em; }
-        .invalid { color: #dc3545; font-weight: bold; font-size: 1.5em; }
-        .nav { text-align: center; margin-bottom: 20px; }
-        a { margin: 0 10px; text-decoration: none; color: #555; font-weight: bold; }
     </style>
-    <!-- MISE À JOUR VERSION 6.13.2 POUR CORRIGER LE HASHAGE -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
 </head>
 <body>
     <div class="nav">
-        <a href="ecole.html"><- École</a> | <strong>Vérification (Zero Knowledge)</strong>
+        <a href="index.html">Admin</a> |
+        <a href="ecole.html">Ecole</a> |
+        <a href="etudiant.html">Etudiant</a> |
+        <a href="entreprise.html">Verificateur</a>
     </div>
 
-    <h1>🌍 Portail de Vérification</h1>
+    <h1>Portail de Verification</h1>
 
+    <!-- METHODE 1 : TOKEN (Nouveau) -->
     <div class="card">
-        <h2>Prouver l'authenticité</h2>
-        <p>Veuillez saisir les informations présentes sur le diplôme papier (y compris le code secret).</p>
-        
-        <input type="text" id="vName" placeholder="Nom Étudiant">
-        <input type="text" id="vDegree" placeholder="Diplôme">
-        <input type="text" id="vSecret" placeholder="Le SECRET (0x...)">
-        
-        <button onclick="verify()">Reconstruire la Preuve</button>
+        <h3>Methode 1 : Avec Token Temporaire</h3>
+        <input type="text" id="tokenInput" placeholder="Collez le Token (0x...)">
+        <button onclick="verifyToken()">Verifier Token</button>
+        <div id="resultToken" class="result-box"></div>
+    </div>
 
-        <div id="result" class="result-box"></div>
+    <!-- METHODE 2 : MANUEL (Ancien) -->
+    <div class="card">
+        <h3>Methode 2 : Reconstruire la Preuve (Zero-Knowledge)</h3>
+        <input type="text" id="vName" placeholder="Nom Etudiant">
+        <input type="text" id="vDegree" placeholder="Diplome">
+        <input type="text" id="vSecret" placeholder="Le SECRET (0x...)">
+        <button onclick="verifyManual()">Verifier Preuve</button>
+        <div id="resultManual" class="result-box"></div>
     </div>
 
     <script>
-        // --- REMPLACE PAR TON ADRESSE DE CONTRAT ---
-        const contractAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3"; 
-        // -------------------------------------------
+        const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; // ⚠️ A REMPLACER
+        
+        // ABI contenant les 2 fonctions
+        const abi = [ 
+            "function verifyWithToken(bytes32) public view returns (bool, string, uint256, bool)",
+            "function verifyDiploma(bytes32) public view returns (bool, uint256, string, bool)"
+        ];
 
-        const abi = [ "function verifyDiploma(bytes32) public view returns (bool, uint256, string, bool)" ];
+        // VERIFICATION TOKEN
+        async function verifyToken() {
+            const token = document.getElementById("tokenInput").value.trim();
+            const output = document.getElementById("resultToken");
+            output.style.display = "block";
+            
+            try {
+                const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/", undefined, { staticNetwork: true });
+                const contract = new ethers.Contract(contractAddress, abi, provider);
+                const data = await contract.verifyWithToken(token);
+                // data = [isValid, schoolName, date, isActive]
 
-        async function verify() {
+                if(data[0]) {
+                    output.innerHTML = `<b style="color:green">TOKEN VALIDE</b><br>Ecole: ${data[1]}<br>Statut Ecole: ${data[3]?"Active":"REVOQUEE"}`;
+                } else {
+                    output.innerHTML = `<b style="color:red">INVALIDE / EXPIRE</b>`;
+                }
+            } catch(e) { output.innerHTML = "Erreur: Token inconnu"; }
+        }
+
+        // VERIFICATION MANUELLE
+        async function verifyManual() {
             const name = document.getElementById("vName").value.trim();
             const degree = document.getElementById("vDegree").value.trim();
             const secret = document.getElementById("vSecret").value.trim();
-            const output = document.getElementById("result");
-            
+            const output = document.getElementById("resultManual");
             output.style.display = "block";
-            output.innerText = "Calcul du Hash et Vérification...";
 
             try {
-                // 1. RECONSTRUCTION DU HASH
-                const rebuiltHash = ethers.solidityPackedKeccak256(
-                    ["string", "string", "bytes32"], 
-                    [name, degree, secret]
-                );
-
-                console.log("Hash reconstruit:", rebuiltHash);
+                const hash = ethers.solidityPackedKeccak256(["string","string","bytes32"], [name, degree, secret]);
+                console.log("Hash calcule: ", hash);
 
                 const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/", undefined, { staticNetwork: true });
                 const contract = new ethers.Contract(contractAddress, abi, provider);
                 
-                const data = await contract.verifyDiploma(rebuiltHash);
-                
-                const isValid = data[0];
-                const schoolName = data[2];
+                const data = await contract.verifyDiploma(hash);
+                // data = [isValid, date, schoolName, isActive]
 
-                if(isValid) {
-                    output.innerHTML = `
-                        <div class='valid'>✅ AUTHENTIQUE</div>
-                        <p>Certifié par : <strong>${schoolName}</strong></p>
-                        <small>La preuve cryptographique correspond.</small>
-                    `;
+                if(data[0]) {
+                    output.innerHTML = `<b style="color:green">PREUVE VALIDE</b><br>Certifie par: ${data[2]}`;
                 } else {
-                    output.innerHTML = `
-                        <div class='invalid'>❌ INCONNU / FALSIFIÉ</div>
-                        <p>Aucune trace de ce hash sur la blockchain.</p>
-                        <small>Vérifiez le secret.</small>
-                    `;
+                    output.innerHTML = `<b style="color:red">INVALIDE</b><br>Aucune correspondance.`;
                 }
-            } catch(err) {
-                console.error(err);
-                output.innerHTML = "<div class='invalid'>❌ Erreur Technique</div><br>" + err.message;
-            }
+            } catch(e) { console.error(e); output.innerHTML = "Erreur Technique"; }
         }
     </script>
 </body>

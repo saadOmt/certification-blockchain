@@ -2,100 +2,84 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Espace Étudiant</title>
+    <title>Portefeuille Etudiant</title>
     <style>
         body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f3e5f5; }
-        .card { background: white; padding: 30px; border-radius: 12px; border-left: 6px solid #9c27b0; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h1 { color: #9c27b0; text-align: center; }
-        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        .nav { background: #333; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px; }
+        .nav a { color: white; text-decoration: none; margin: 0 15px; font-weight: bold; }
+        .nav a:hover { text-decoration: underline; color: #ddd; }
+
+        .card { background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #9c27b0; }
         button { width: 100%; padding: 12px; background-color: #9c27b0; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #7b1fa2; }
-        .result-box { margin-top: 20px; background: #fff; padding: 15px; border-radius: 5px; border: 1px dashed #9c27b0; display: none;}
-        .nav { text-align: center; margin-bottom: 20px; }
-        a { margin: 0 10px; text-decoration: none; color: #555; font-weight: bold; }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
 </head>
 <body>
     <div class="nav">
-        <a href="ecole.html"><- École</a> | <strong>Étudiant (Compte #2)</strong> | <a href="entreprise.html">Entreprise -></a>
+        <a href="index.html">Admin</a> |
+        <a href="ecole.html">Ecole</a> |
+        <a href="etudiant.html">Etudiant</a> |
+        <a href="entreprise.html">Verificateur</a>
     </div>
 
-    <h1>🎓 Mon Coffre-fort Diplôme</h1>
-
+    <h1>Mon Portefeuille</h1>
+    
     <div class="card">
-        <h2>Générer un lien de partage</h2>
-        <p>Entrez votre <strong>Code Maître</strong> (reçu de l'école) pour créer un accès temporaire pour un recruteur.</p>
-        
-        <label>Votre Code Maître :</label>
-        <input type="text" id="masterCode" placeholder="Collez le code long (0x...)">
-        
-        <label>Durée de validité :</label>
-        <select id="duration">
-            <option value="60">1 minute (Test rapide)</option>
-            <option value="3600">1 Heure</option>
-            <option value="86400">24 Heures</option>
-            <option value="604800">1 Semaine</option>
-        </select>
-        
-        <button onclick="generateTempLink()">⏳ Créer un Code Temporaire</button>
+        <h3>1. Importer mon Diplome (JSON)</h3>
+        <input type="file" id="jsonFile" accept=".json">
+        <div id="fileData" style="margin-top:10px; font-weight:bold;"></div>
+    </div>
 
-        <div id="result" class="result-box"></div>
+    <div class="card" style="margin-top:20px;">
+        <h3>2. Generer une Preuve Temporaire</h3>
+        <select id="duration" style="width:100%;padding:10px;margin:10px 0;">
+            <option value="60">1 Minute</option>
+            <option value="3600">1 Heure</option>
+        </select>
+        <button onclick="createProof()">Creer Token d'Acces</button>
+        <p id="tempTokenDisplay" style="font-size:1.2em; color:green; text-align:center; font-weight:bold; margin-top:15px; word-break:break-all;"></p>
     </div>
 
     <script>
-        // --- COLLE TON ADRESSE ICI ---
-        const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; 
-        // -----------------------------
+        const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; // ⚠️ A REMPLACER
+        const abi = ["function createTempAccess(bytes32, uint256) public returns (bytes32)", "event AccessGranted(bytes32 indexed tempToken, uint256 expiration)"];
+        let loadedVC = null;
 
-        const abi = [
-            "function createTemporaryCode(bytes32, uint256) public returns (bytes32)",
-            "event AccessTokenGenerated(bytes32 indexed tempCode, bytes32 indexed realCode, uint256 expiration)"
-        ];
+        document.getElementById('jsonFile').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    loadedVC = JSON.parse(event.target.result);
+                    document.getElementById('fileData').innerText = `Diplome charge : ${loadedVC.credentialSubject.degree}`;
+                } catch(e) { alert("Fichier invalide"); }
+            };
+            reader.readAsText(e.target.files[0]);
+        });
 
-        async function generateTempLink() {
-            const masterCode = document.getElementById("masterCode").value;
-            const duration = document.getElementById("duration").value;
-            const output = document.getElementById("result");
-
-            if(!masterCode) return alert("Il faut le Code Maître !");
-
-            output.style.display = "block";
-            output.innerText = "Génération du code temporaire sur la Blockchain...";
-
+        async function createProof() {
+            if(!loadedVC) return alert("Chargez le JSON d'abord !");
+            
             try {
-                const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/");
-                // On utilise le Compte #2 pour simuler l'étudiant
-                const signer = await provider.getSigner(2); 
+                const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/", undefined, { staticNetwork: true });
+                const signer = await provider.getSigner(10); 
                 const contract = new ethers.Contract(contractAddress, abi, signer);
 
-                const tx = await contract.createTemporaryCode(masterCode, duration);
+                const duration = document.getElementById("duration").value;
+                alert("Creation du token sur la blockchain...");
+                const tx = await contract.createTempAccess(loadedVC.proof.hash, duration);
                 const receipt = await tx.wait();
 
-                // Récupération du log
-                let tempCode = null;
-                for (const log of receipt.logs) {
-                    try {
-                        const parsedLog = contract.interface.parseLog(log);
-                        if (parsedLog.name === 'AccessTokenGenerated') {
-                            tempCode = parsedLog.args[0];
-                        }
-                    } catch (e) {}
+                let token = null;
+                for(const log of receipt.logs) {
+                    try { 
+                        const parsed = contract.interface.parseLog(log);
+                        if(parsed.name === "AccessGranted") token = parsed.args[0]; 
+                    } catch(e){}
                 }
+                
+                document.getElementById("tempTokenDisplay").innerHTML = `TOKEN :<br>${token}`;
 
-                if(tempCode) {
-                    output.innerHTML = `
-                        <strong>✅ Code Temporaire Créé !</strong><br>
-                        Ce code est valide pour ${duration/60} minutes.<br><br>
-                        <span style="color:#d63384; font-family:monospace; font-size:1.1em">${tempCode}</span>
-                        <br><br>Donnez CE code au recruteur (gardez le maître secret).
-                    `;
-                }
-
-            } catch(err) {
-                console.error(err);
-                output.innerText = "Erreur : Code Maître incorrect ou problème réseau.";
-            }
+            } catch(e) { console.error(e); alert("Erreur Blockchain"); }
         }
     </script>
 </body>
