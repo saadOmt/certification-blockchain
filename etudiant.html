@@ -11,6 +11,7 @@
 
         .card { background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #9c27b0; }
         button { width: 100%; padding: 12px; background-color: #9c27b0; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .token-box { word-break: break-all; background: #e1bee7; padding: 10px; border-radius: 5px; margin-top: 10px; font-family: monospace; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
 </head>
@@ -31,17 +32,22 @@
     </div>
 
     <div class="card" style="margin-top:20px;">
-        <h3>2. Generer une Preuve Temporaire</h3>
+        <h3>2. Generer une Preuve de Presentation</h3>
+        <p>Cree un lien securise contenant votre identite et la preuve blockchain.</p>
         <select id="duration" style="width:100%;padding:10px;margin:10px 0;">
             <option value="60">1 Minute</option>
             <option value="3600">1 Heure</option>
         </select>
-        <button onclick="createProof()">Creer Token d'Acces</button>
-        <p id="tempTokenDisplay" style="font-size:1.2em; color:green; text-align:center; font-weight:bold; margin-top:15px; word-break:break-all;"></p>
+        <button onclick="createProof()">Generer la Presentation</button>
+        
+        <div id="resultArea" style="display:none;">
+            <p><strong>COPIEZ CE CODE POUR LE RECRUTEUR :</strong></p>
+            <div id="tempTokenDisplay" class="token-box"></div>
+        </div>
     </div>
 
     <script>
-        const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; // ⚠️ A REMPLACER
+        const contractAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; 
         const abi = ["function createTempAccess(bytes32, uint256) public returns (bytes32)", "event AccessGranted(bytes32 indexed tempToken, uint256 expiration)"];
         let loadedVC = null;
 
@@ -50,7 +56,7 @@
             reader.onload = function(event) {
                 try {
                     loadedVC = JSON.parse(event.target.result);
-                    document.getElementById('fileData').innerText = `Diplome charge : ${loadedVC.credentialSubject.degree}`;
+                    document.getElementById('fileData').innerText = `Diplome charge : ${loadedVC.credentialSubject.degree} - ${loadedVC.credentialSubject.name}`;
                 } catch(e) { alert("Fichier invalide"); }
             };
             reader.readAsText(e.target.files[0]);
@@ -65,21 +71,37 @@
                 const contract = new ethers.Contract(contractAddress, abi, signer);
 
                 const duration = document.getElementById("duration").value;
-                alert("Creation du token sur la blockchain...");
+                
+                // 1. Création du Token Blockchain (La Preuve Technique)
                 const tx = await contract.createTempAccess(loadedVC.proof.hash, duration);
                 const receipt = await tx.wait();
 
-                let token = null;
+                let blockchainToken = null;
                 for(const log of receipt.logs) {
                     try { 
                         const parsed = contract.interface.parseLog(log);
-                        if(parsed.name === "AccessGranted") token = parsed.args[0]; 
+                        if(parsed.name === "AccessGranted") blockchainToken = parsed.args[0]; 
                     } catch(e){}
                 }
-                
-                document.getElementById("tempTokenDisplay").innerHTML = `TOKEN :<br>${token}`;
 
-            } catch(e) { console.error(e); alert("Erreur Blockchain"); }
+                // 2. Création de la "Présentation" (Le Code Complet avec l'Identité)
+                // On met le Nom + Diplome + Token Blockchain dans un paquet encodé
+                const presentationData = {
+                    token: blockchainToken,
+                    name: loadedVC.credentialSubject.name,
+                    degree: loadedVC.credentialSubject.degree
+                };
+
+                // Encodage en Base64 pour faire un seul bloc de texte facile à copier
+                const presentationCode = btoa(JSON.stringify(presentationData));
+                
+                document.getElementById("resultArea").style.display = "block";
+                document.getElementById("tempTokenDisplay").innerText = presentationCode;
+
+            } catch(e) { 
+                console.error(e); 
+                alert("Erreur Blockchain : Verifiez que le diplome est valide."); 
+            }
         }
     </script>
 </body>

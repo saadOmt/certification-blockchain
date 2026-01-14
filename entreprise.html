@@ -27,17 +27,16 @@
 
     <h1>Portail de Verification</h1>
 
-    <!-- METHODE 1 : TOKEN (Nouveau) -->
     <div class="card">
-        <h3>Methode 1 : Avec Token Temporaire</h3>
-        <input type="text" id="tokenInput" placeholder="Collez le Token (0x...)">
-        <button onclick="verifyToken()">Verifier Token</button>
+        <h3>Methode 1 : Verifier une Presentation (Token)</h3>
+        <p>Collez le code fourni par le candidat.</p>
+        <input type="text" id="tokenInput" placeholder="" style="font-family:monospace;">
+        <button onclick="verifyToken()">Verifier l'Identite & le Diplome</button>
         <div id="resultToken" class="result-box"></div>
     </div>
 
-    <!-- METHODE 2 : MANUEL (Ancien) -->
     <div class="card">
-        <h3>Methode 2 : Reconstruire la Preuve (Zero-Knowledge)</h3>
+        <h3>Methode 2 : Verification Manuelle (Avance)</h3>
         <input type="text" id="vName" placeholder="Nom Etudiant">
         <input type="text" id="vDegree" placeholder="Diplome">
         <input type="text" id="vSecret" placeholder="Le SECRET (0x...)">
@@ -46,35 +45,61 @@
     </div>
 
     <script>
-        const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; // ⚠️ A REMPLACER
+        const contractAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; 
         
-        // ABI contenant les 2 fonctions
         const abi = [ 
             "function verifyWithToken(bytes32) public view returns (bool, string, uint256, bool)",
             "function verifyDiploma(bytes32) public view returns (bool, uint256, string, bool)"
         ];
 
-        // VERIFICATION TOKEN
         async function verifyToken() {
-            const token = document.getElementById("tokenInput").value.trim();
+            const rawInput = document.getElementById("tokenInput").value.trim();
             const output = document.getElementById("resultToken");
             output.style.display = "block";
             
             try {
+                // 1. Décodage de la "Présentation" (Base64 -> JSON)
+                let presentation;
+                try {
+                    presentation = JSON.parse(atob(rawInput));
+                } catch(e) {
+                    throw new Error("Format de code invalide. Copiez tout le code.");
+                }
+
+                const { token, name, degree } = presentation;
+
+                // 2. Vérification Blockchain
                 const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/", undefined, { staticNetwork: true });
                 const contract = new ethers.Contract(contractAddress, abi, provider);
                 const data = await contract.verifyWithToken(token);
                 // data = [isValid, schoolName, date, isActive]
 
                 if(data[0]) {
-                    output.innerHTML = `<b style="color:green">TOKEN VALIDE</b><br>Ecole: ${data[1]}<br>Statut Ecole: ${data[3]?"Active":"REVOQUEE"}`;
+                    let html = `<b style="color:green;font-size:1.4em">✅ DIPLOME VALIDE</b><br>`;
+                    html += `<hr>`;
+                    html += `Candidat : <strong>${name}</strong><br>`;
+                    html += `Diplome : <strong>${degree}</strong><br>`;
+                    html += `<hr>`;
+                    html += `Certifie par : ${data[1]}<br>`;
+                    
+                    if(!data[3]) {
+                        html += `<br><span style="color:red;border:2px solid red;padding:5px;">ATTENTION : ECOLE REVOQUEE !</span>`;
+                    } else {
+                        html += `<span style="color:blue">Ecole Active & Certifiee</span><br>`;
+                    }
+                    
+                    html += `<br><small><em>Veuillez verifier la piece d'identite du candidat pour confirmer qu'il est bien ${name}.</em></small>`;
+                    
+                    output.innerHTML = html;
                 } else {
-                    output.innerHTML = `<b style="color:red">INVALIDE / EXPIRE</b>`;
+                    output.innerHTML = `<b style="color:red">TOKEN INVALIDE OU EXPIRE</b>`;
                 }
-            } catch(e) { output.innerHTML = "Erreur: Token inconnu"; }
+            } catch(e) { 
+                console.error(e);
+                output.innerHTML = "Erreur: " + e.message; 
+            }
         }
 
-        // VERIFICATION MANUELLE
         async function verifyManual() {
             const name = document.getElementById("vName").value.trim();
             const degree = document.getElementById("vDegree").value.trim();
@@ -84,13 +109,10 @@
 
             try {
                 const hash = ethers.solidityPackedKeccak256(["string","string","bytes32"], [name, degree, secret]);
-                console.log("Hash calcule: ", hash);
-
                 const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/", undefined, { staticNetwork: true });
                 const contract = new ethers.Contract(contractAddress, abi, provider);
                 
                 const data = await contract.verifyDiploma(hash);
-                // data = [isValid, date, schoolName, isActive]
 
                 if(data[0]) {
                     output.innerHTML = `<b style="color:green">PREUVE VALIDE</b><br>Certifie par: ${data[2]}`;

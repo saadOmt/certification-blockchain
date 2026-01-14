@@ -32,6 +32,7 @@ contract DiplomaCertification {
     address[] public admins;
     mapping(address => bool) public isAdmin;
     
+    // Mappings publics pour lecture depuis le frontend
     mapping(address => SchoolProposal) public proposals; 
     mapping(address => School) public schools;
     mapping(bytes32 => Diploma) public diplomas;
@@ -53,6 +54,7 @@ contract DiplomaCertification {
     modifier onlyAdmin() { require(isAdmin[msg.sender], "Admin only"); _; }
     modifier onlyAuthorizedSchool() { require(schools[msg.sender].isAuthorized, "Ecole non autorisee"); _; }
 
+    // --- GOUVERNANCE ---
     function voteForSchool(address _school, string memory _name) public onlyAdmin {
         SchoolProposal storage p = proposals[_school];
         if (bytes(p.name).length == 0) p.name = _name;
@@ -75,6 +77,7 @@ contract DiplomaCertification {
         emit SchoolRevoked(_school);
     }
 
+    // --- ÉMISSION ---
     function issueDiploma(bytes32 _dataHash) public onlyAuthorizedSchool {
         require(diplomas[_dataHash].dateOfIssue == 0, "Diplome deja existant");
         diplomas[_dataHash] = Diploma({
@@ -85,6 +88,7 @@ contract DiplomaCertification {
         emit DiplomaIssued(_dataHash, msg.sender);
     }
 
+    // --- TOKEN TEMPORAIRE ---
     function createTempAccess(bytes32 _diplomaHash, uint256 _durationSeconds) public returns (bytes32) {
         require(diplomas[_diplomaHash].dateOfIssue > 0, "Diplome inconnu");
         
@@ -111,5 +115,15 @@ contract DiplomaCertification {
         bool isSchoolActive = schools[d.issuer].isAuthorized;
 
         return (true, schools[d.issuer].name, d.dateOfIssue, isSchoolActive);
+    }
+
+    // --- VÉRIFICATION DIRECTE (Manuelle) ---
+    function verifyDiploma(bytes32 _diplomaHash) public view returns (bool, uint256, string memory, bool) {
+        Diploma memory d = diplomas[_diplomaHash];
+        
+        if(d.dateOfIssue == 0) return (false, 0, "", false);
+
+        bool isSchoolActive = schools[d.issuer].isAuthorized;
+        return (true, d.dateOfIssue, schools[d.issuer].name, isSchoolActive);
     }
 }
